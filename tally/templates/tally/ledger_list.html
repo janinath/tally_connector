@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Ledger List</title>
+</head>
+<body>
+    <h1>Ledger List</h1>
+    <table border="1">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Parent</th>
+                <th>Opening Balance</th>
+                <th>Closing Balance</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for ledger in ledgers %}
+            <tr>
+                <td>{{ ledger.name }}</td>
+                <td>{{ ledger.parent }}</td>
+                <td>{{ ledger.opening_balance }}</td>
+                <td>{{ ledger.closing_balance }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>
