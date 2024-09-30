@@ -1,32 +1,17 @@
 from django.shortcuts import render,redirect
 import requests
-import xmltodict
 from .models import Ledger
-from django.http import JsonResponse
+from django.http import JsonResponse,HttpResponse
 import xml.etree.ElementTree as ET
 import re
+import json
+import csv
+import struct  # For creating binary-like formats
 # Create your views here.
 TALLY_URL = 'http://localhost:9000'
 
-# XML Request to fetch Ledger data from Tally
-ledger_request_xml = """
-<ENVELOPE>
-    <HEADER>
-        <TALLYREQUEST>Export</TALLYREQUEST>
-    </HEADER>
-    <BODY>
-        <EXPORTDATA>
-            <REQUESTDESC>
-                <REPORTNAME>Ledger Vouchers</REPORTNAME>
-                <STATICVARIABLES>
-                    <SVCURRENTCOMPANY>Abc</SVCURRENTCOMPANY>
-                </STATICVARIABLES>
-            </REQUESTDESC>
-        </EXPORTDATA>
-    </BODY>
-</ENVELOPE>
 
-"""
+
 
 def parse_tally_response(xml_response):
     """
@@ -66,7 +51,7 @@ def fetch_tally_data(request):
                 <REQUESTDESC>
                     <REPORTNAME>List of Accounts</REPORTNAME>  <!-- Using List of Accounts report -->
                     <STATICVARIABLES>
-                        <SVCURRENTCOMPANY>Abc</SVCURRENTCOMPANY><!-- Ensure correct company name -->
+                        <SVCURRENTCOMPANY>Yhn</SVCURRENTCOMPANY><!-- Ensure correct company name -->
                         <EXPLODEVOUCHERS>Yes</EXPLODEVOUCHERS>
                         <SHOWOPENINGBALANCE>Yes</SHOWOPENINGBALANCE>
                         <SHOWCLOSINGBALANCE>Yes</SHOWCLOSINGBALANCE>
@@ -87,7 +72,7 @@ def fetch_tally_data(request):
         # Sanitize the raw XML response to avoid invalid characters
         sanitized_xml = sanitize_xml(response.text)
 
-        print(sanitized_xml)  # Log the sanitized XML response to the terminal
+          
 
         if response.status_code == 200:
             # Parse the sanitized XML response
@@ -101,22 +86,8 @@ def fetch_tally_data(request):
     
     except requests.exceptions.RequestException as e:
         return JsonResponse({"error": str(e)}, status=500)
-def import_ledger_data(request):
-    tally_data = fetch_tally_data()
-    
-    if tally_data:
-        ledgers = tally_data['ENVELOPE']['BODY']['DATA']['COLLECTION']['LEDGER']
-        
-        for ledger in ledgers:
-            Ledger.objects.update_or_create(
-                name=ledger['LEDGERNAME'],
-                defaults={
-                    'opening_balance': ledger.get('OPENINGBALANCE', 0),
-                    'closing_balance': ledger.get('CLOSINGBALANCE', 0)
-                }
-            )
-    
-    return render(request, 'tally/import_success.html')
+
+
 def sanitize_xml(xml_str):
     """
     Replaces problematic characters in the XML response.
@@ -148,3 +119,35 @@ def save_ledger_data(response_content):
                 'closing_balance': closing_balance or 0   # Save 0 if not provided
             }
         )
+
+def import_successfull(request):
+    return render(request,'tally/import_success.html')
+
+def download_ledger_backup(request):
+    # Create the HttpResponse object with the appropriate CSV header.
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="ledger_backup.csv"'
+
+    writer = csv.writer(response)
+    # Write the header row
+    writer.writerow(['Name', 'Parent', 'Opening Balance', 'Closing Balance'])
+
+    # Write data rows
+    ledgers = Ledger.objects.all()
+    for ledger in ledgers:
+        writer.writerow([ledger.name, ledger.parent, ledger.opening_balance, ledger.closing_balance])
+
+    return response
+
+def generate_custom_backup(request):
+    # Define the binary or custom data you want to write to the file
+    data = b"TAPE  \x03 \x8C\x0E\x01                                    \x02 \x87\x05\x8A\x1C\x1B\x81\x05   \x01   \x01\x03             , ^  \x04\x12\x1F\x98\xC9)Z\x01M i c r o s o f t   S Q L   S e r v e r       RAID                ;\x05\x9A\xB2\x1CBr\xA6\xD6\xE4\x4C\xA9\xCE5L\x8D\x16\xFFI\xAD  \xF0\x01\x01\x01     \x01   SPAD    &\x03          4\x17..."
+
+    # Create the HttpResponse object with the appropriate headers
+    response = HttpResponse(content_type='application/octet-stream')
+    response['Content-Disposition'] = 'attachment; filename="custom_backup.bak"'
+
+    # Write the binary data to the response
+    response.write(data)
+
+    return response

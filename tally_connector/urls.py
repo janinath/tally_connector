@@ -20,6 +20,6 @@ from tally import views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-     path('tally/', include('tally.urls')),
+     path('', include('tally.urls')),
       path('fetch-tally-data/', views.fetch_tally_data, name='fetch_tally_data'),
 ]
